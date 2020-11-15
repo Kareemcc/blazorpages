@@ -1,0 +1,133 @@
+﻿@page "/sensor"
+@inject HttpClient Http
+<h3>SensorSetup</h3>
+
+<div class="col-12">
+    <h3><b> Enter Sensor setup information</b></h3>
+
+    <div>
+        <EditForm Model="@sensortype" OnValidSubmit="@GetSensorCategories">
+            <select class="form-control" @bind="sensortype.Name">
+                <option>--select--</option>
+                @foreach (var item in sensorsTypes)
+                {
+                    <option value="@item.Name">@item.Name</option>
+                    // Blazor needs to know what values it binds to!
+                }
+            </select>
+        </EditForm>
+    </div>
+
+    <div hidden="@IsShowCategory">
+        <EditForm Model="@category" OnValidSubmit="@GetSensorsData">
+            <select class="form-control" @bind="category.Name">
+                <option>--select--</option>
+                @foreach (var item in categories)
+                {
+                    <option value="@item.Name">@item.Name</option>
+                    // Blazor needs to know what values it binds to!
+                }
+            </select>
+        </EditForm>
+    </div>
+
+    <div hidden="@IsShowSensor">
+        <EditForm Model="@sensors" OnValidSubmit="@PostSensorsData">
+            @if (sensors == null)
+            {
+                <p><em>Loading...</em></p>
+            }
+            else
+            {
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>UID</th>
+                            <th>Sampling Rate</th>
+                            <th>Mqtt Topic</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in sensors)
+                        {
+                        <tr>
+                            <td>@item.UID</td>
+                            <td> <InputText class="form-control col-3" @bind-Value="item.samplingRate" id="sampling_rate"> @item.samplingRate </InputText> </td>
+                            
+                            <td><InputText class="form-control col-3" @bind-Value="item.mqttTopic" id="mqtt_topic"> @item.mqttTopic </InputText></td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </EditForm>
+    </div>
+
+
+</div>
+    @code {
+        private SensorType[] sensorsTypes;
+        private SensorType sensortype = new SensorType();
+        protected override async Task OnInitializedAsync()
+        {
+            sensorsTypes = await Http.GetFromJsonAsync<SensorType[]>("/");
+        }
+
+        public class SensorType
+        {
+            public String Name { get; set; }
+        }
+
+        //-------------------------------------//
+
+        private SensorCategory[] categories;
+        private SensorCategory category = new SensorCategory();
+        private bool IsShowCategory { get; set; } = false;
+        private void ShowCategory()
+        {
+            IsShowCategory = true;
+        }
+
+        private async Task GetSensorCategories()
+        {
+            var response = await Http.PostAsJsonAsync("v1/categories", sensortype);
+            response.EnsureSuccessStatusCode();
+            categories = await response.Content.ReadFromJsonAsync<SensorCategory[]>();
+            ShowCategory();
+        }
+
+        public class SensorCategory
+        {
+            public String Name { get; set; }
+        }
+
+        //--------------------------------------------//
+
+        private Sensors[] sensors;
+        private Sensors sensor = new Sensors();
+        private bool IsShowSensor { get; set; } = false;
+        private void ShowSensor()
+        {
+            IsShowSensor = true;
+        }
+
+        private async Task GetSensorsData()
+        {
+            var response = await Http.PostAsJsonAsync("v1/sensordata", category);
+            response.EnsureSuccessStatusCode();
+            sensors = await response.Content.ReadFromJsonAsync<Sensors[]>();
+            ShowSensor();
+        }
+
+        public class Sensors
+        {
+            public String UID { get; set; }
+            public String samplingRate { get; set; }
+            public String mqttTopic { get; set; }
+        }
+
+        private async Task PostSensorsData()
+        {
+            await Http.PostAsJsonAsync("v1/sensordata", sensors);
+        }
+    }
